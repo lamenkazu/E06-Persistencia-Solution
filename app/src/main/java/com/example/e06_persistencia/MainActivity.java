@@ -1,9 +1,18 @@
 package com.example.e06_persistencia;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
@@ -14,36 +23,92 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import com.google.android.material.textview.MaterialTextView;
+
 import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final int PHOTO_CODE = 0;
+    private static final int REQUEST_PERMISSION_CODE = 1;
+    private final String SHARE_PREF_ID = "SharedPrefId";
+
+    Button btnTake ;
+    Button btnSave ;
+    ImageView ivPhoto ;
+    MaterialTextView lblAccess, lblTime;
+
+    SimpleDateFormat sdf ;
+    String actualDate ;
+
+    private void initComponents(){
+        btnTake = findViewById(R.id.btn_take);
+        btnSave = findViewById(R.id.btn_save);
+        ivPhoto = findViewById(R.id.img);
+        lblAccess = findViewById(R.id.lbl_access);
+        lblTime = findViewById(R.id.lbl_time);
+
+        sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+        sdf.setTimeZone(TimeZone.getTimeZone("America/Sao_Paulo"));
+
+        actualDate = sdf.format(new Date());
+
+    }
+
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if(requestCode == REQUEST_PERMISSION_CODE){
+            if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+
+            }else{
+                showToast("Permissao negada, nao é possivel salvar a foto");
+            }
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Button btnTake = findViewById(R.id.btn_take);
-        Button btnSave = findViewById(R.id.btn_save);
-        ImageView ivPhoto = findViewById(R.id.img);
+        initComponents();
 
+        SharedPreferences pref = getApplicationContext().getSharedPreferences(SHARE_PREF_ID, 0);
+        SharedPreferences.Editor editor = pref.edit();
+        String value = pref.getString("last_access", "");
+
+        if(value != ""){
+            lblAccess.setText("Ultimo acesso: ");
+            lblTime.setText(value);
+            editor.putString("last_access", actualDate);
+            editor.commit();
+        }else{
+            lblAccess.setText("Primeiro acesso: ");
+            editor.putString("last_access", actualDate);
+            editor.commit();
+        }
 
         btnTake.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent photoIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 
-                startActivityForResult(photoIntent, PHOTO_CODE);
+                launcher.launch(photoIntent);
             }
         });
 
@@ -51,54 +116,59 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 if(ivPhoto.getDrawable() != null){
+                    BitmapDrawable bitmapDrawable = ((BitmapDrawable) ivPhoto.getDrawable());
+                    Bitmap bitmap = bitmapDrawable.getBitmap();
+                    String path = Environment.getExternalStorageDirectory().toString();
+                    File file = new File(path, "image.jpg");
 
-
-
-
-
-                    try{
-                        String path = Environment.getExternalStorageDirectory().toString();
-                        OutputStream fOut = null;
-                        Integer counter = 0;
-                        File file = new File(path, "image"+counter+".jpg");
-
-                        BitmapDrawable bitmapDrawable = ((BitmapDrawable) ivPhoto.getDrawable());
-                        Bitmap bitmap = bitmapDrawable.getBitmap();
-                        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream);
-//                        byte[] imageInByte = stream.toByteArray();
-//                        ByteArrayInputStream bis = new ByteArrayInputStream(imageInByte);
-
-                        stream.close();
-
-                        MediaStore.Images.Media.insertImage(getContentResolver(), file.getAbsolutePath(), file.getName(), file.getName());
-
-
-
-                        Toast.makeText(MainActivity.this, "Foto Salva", Toast.LENGTH_SHORT).show();
-
-
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
+                    if(Environment.getExternalStorageState(file).equals(Environment.MEDIA_MOUNTED)){
+                        if(checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)
+                            savePhoto(bitmap, file);
+                        else
+                            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_PERMISSION_CODE);
                     }
-                }else{
-                    Toast.makeText(MainActivity.this, "Nao há foto", Toast.LENGTH_SHORT).show();
-                }
+                    else showToast("Armazenamento Externo Indisponível");
+
+                }else showToast("Não há foto para salvar");
+
             }
         });
-
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
+    private void savePhoto(Bitmap bitmap, File file){
+        try {
+            if (Environment.getExternalStorageState(file).equals(Environment.MEDIA_MOUNTED)) {
+                FileOutputStream out = new FileOutputStream(file);
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
+                out.flush();
+                out.close();
+                showToast("Foto Salva");
 
-        if(requestCode == PHOTO_CODE && resultCode == RESULT_OK){
-            Bitmap photo = (Bitmap) data.getExtras().get("data");
-
-            ImageView ivPhoto = findViewById(R.id.img);
-            ivPhoto.setImageBitmap(photo);
-
+            }
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
+
+    private void showToast(String message){
+        Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
+    }
+
+    private final ActivityResultLauncher<Intent> launcher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), new ActivityResultCallback<ActivityResult>() {
+        @Override
+        public void onActivityResult(ActivityResult result) {
+            if(result.getResultCode() == RESULT_OK){
+                Intent data = result.getData();
+
+                if(data != null){
+                    Bitmap photo = (Bitmap) data.getExtras().get("data");
+                    ImageView ivPhoto = findViewById(R.id.img);
+                    ivPhoto.setImageBitmap(photo);
+                }
+
+            }
+        }
+    });
 }

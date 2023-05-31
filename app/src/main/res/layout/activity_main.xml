@@ -37,5 +37,29 @@
 
         />
 
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/lbl_access"
+        style="@style/Widget.MaterialComponents.TextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+
+        android:textSize="20dp"
+        android:text="uai"
+        android:layout_alignParentBottom="true"
+        />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/lbl_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_toRightOf="@id/lbl_access"
+        android:layout_marginLeft="10dp"
+
+        android:textSize="20dp"
+        android:text="uai"
+
+        />
+
 
 </RelativeLayout>
