@@ -67,19 +67,21 @@ public class MainActivity extends AppCompatActivity {
         actualDate = sdf.format(new Date());
 
     }
+    private final ActivityResultLauncher<Intent> launcher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), new ActivityResultCallback<ActivityResult>() {
+        @Override
+        public void onActivityResult(ActivityResult result) {
+            if(result.getResultCode() == RESULT_OK){
+                Intent data = result.getData();
 
+                if(data != null){
+                    Bitmap photo = (Bitmap) data.getExtras().get("data");
+                    ImageView ivPhoto = findViewById(R.id.img);
+                    ivPhoto.setImageBitmap(photo);
+                }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if(requestCode == REQUEST_PERMISSION_CODE){
-            if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
-
-            }else{
-                showToast("Permissao negada, nao é possivel salvar a foto");
             }
         }
-    }
+    });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,26 +90,12 @@ public class MainActivity extends AppCompatActivity {
 
         initComponents();
 
-        SharedPreferences pref = getApplicationContext().getSharedPreferences(SHARE_PREF_ID, 0);
-        SharedPreferences.Editor editor = pref.edit();
-        String value = pref.getString("last_access", "");
-
-        if(value != ""){
-            lblAccess.setText("Ultimo acesso: ");
-            lblTime.setText(value);
-            editor.putString("last_access", actualDate);
-            editor.commit();
-        }else{
-            lblAccess.setText("Primeiro acesso: ");
-            editor.putString("last_access", actualDate);
-            editor.commit();
-        }
+        saveAccessTime();
 
         btnTake.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent photoIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-
                 launcher.launch(photoIntent);
             }
         });
@@ -121,12 +109,8 @@ public class MainActivity extends AppCompatActivity {
                     String path = Environment.getExternalStorageDirectory().toString();
                     File file = new File(path, "image.jpg");
 
-                    if(Environment.getExternalStorageState(file).equals(Environment.MEDIA_MOUNTED)){
-                        if(checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)
+                    if(Environment.getExternalStorageState(file).equals(Environment.MEDIA_MOUNTED))
                             savePhoto(bitmap, file);
-                        else
-                            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_PERMISSION_CODE);
-                    }
                     else showToast("Armazenamento Externo Indisponível");
 
                 }else showToast("Não há foto para salvar");
@@ -156,19 +140,18 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
     }
 
-    private final ActivityResultLauncher<Intent> launcher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), new ActivityResultCallback<ActivityResult>() {
-        @Override
-        public void onActivityResult(ActivityResult result) {
-            if(result.getResultCode() == RESULT_OK){
-                Intent data = result.getData();
+    private void saveAccessTime(){
+        SharedPreferences pref = getApplicationContext().getSharedPreferences(SHARE_PREF_ID, 0);
+        SharedPreferences.Editor editor = pref.edit();
+        String value = pref.getString("last_access", "");
 
-                if(data != null){
-                    Bitmap photo = (Bitmap) data.getExtras().get("data");
-                    ImageView ivPhoto = findViewById(R.id.img);
-                    ivPhoto.setImageBitmap(photo);
-                }
-
-            }
+        if(value != ""){
+            lblAccess.setText("Ultimo acesso: ");
+            lblTime.setText(value);
+        }else{
+            lblAccess.setText("Primeiro acesso: ");
         }
-    });
+        editor.putString("last_access", actualDate);
+        editor.commit();
+    }
 }
