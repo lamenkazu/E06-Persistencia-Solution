@@ -18,6 +18,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -42,8 +43,6 @@ import java.util.TimeZone;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int PHOTO_CODE = 0;
-    private static final int REQUEST_PERMISSION_CODE = 1;
     private final String SHARE_PREF_ID = "SharedPrefId";
 
     Button btnTake ;
@@ -106,11 +105,11 @@ public class MainActivity extends AppCompatActivity {
                 if(ivPhoto.getDrawable() != null){
                     BitmapDrawable bitmapDrawable = ((BitmapDrawable) ivPhoto.getDrawable());
                     Bitmap bitmap = bitmapDrawable.getBitmap();
-                    String path = Environment.getExternalStorageDirectory().toString();
+                    String path = getBaseContext().getExternalFilesDir(null).toString();
                     File file = new File(path, "image.jpg");
 
                     if(Environment.getExternalStorageState(file).equals(Environment.MEDIA_MOUNTED))
-                            savePhoto(bitmap, file);
+                        savePhoto(bitmap, file);
                     else showToast("Armazenamento Externo Indisponível");
 
                 }else showToast("Não há foto para salvar");
@@ -145,7 +144,7 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences.Editor editor = pref.edit();
         String value = pref.getString("last_access", "");
 
-        if(value != ""){
+        if(!value.isEmpty()){
             lblAccess.setText("Ultimo acesso: ");
             lblTime.setText(value);
         }else{
